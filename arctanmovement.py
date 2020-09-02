@@ -31,6 +31,7 @@ class MainGame():
         self.player_list = []
 
     def redraw(self):
+        #!I have to clean up the dust created by rotating the images a lot. 
         self.player.move()
         self.player.draw()
 
@@ -61,6 +62,10 @@ class Player():
         self.green_diamond = images[0]
         self.grey_diamond = images[1]
         self.red_diamond = images[2]
+        #!I need this to bring it back to the original
+        self.original_green = images[0]
+        self.original_grey = images[1]
+        self.original_red = images[2]
         self.green_mask = pygame.mask.from_surface(self.green_diamond)
         self.red_mask = pygame.mask.from_surface(self.red_diamond)
         
@@ -84,11 +89,16 @@ class Player():
         MainGame.window.blit(self.grey_diamond, (self.x, self.y))
         MainGame.window.blit(self.red_diamond, (self.x, self.y))
         '''
+        pass
 
     def move(self):
+        #!I need to first return to the original green image
+        self.green_diamond = self.original_green
+
         self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
-        self.center_x = self.x + self.green_diamond.get_width() / 2
-        self.center_y = self.y + self.green_diamond.get_height() / 2
+        #!Since I am blitting based on the center, self.center_x can just be the x and the y
+        self.center_x = self.x 
+        self.center_y = self.y
         self.x_difference = self.mouse_x - self.center_x
         #!Because of the pygame gridding system, I have to *-1 the y_difference. (Has to be positive when cursor is above the object)
         self.y_difference = -(self.mouse_y - self.center_y)
@@ -101,40 +111,77 @@ class Player():
         3. Then I check whether self.y_difference was negative and whether self.x_difference was negative. Based on that, I will find its true degree measure. 
         4. Then I will convert to pygame rotation by -(90 -self.degree)
         '''
-        try:
-            print(f'self.x_distance: {self.x_difference}')
-            print(f'self.y_distance: {self.y_difference}')
-            self.degree = math.atan2(self.y_difference , self.x_difference) * 180 / math.pi
-            print(f'first atan: {self.degree}')
-            if self.x_difference < 0:
-                if self.y_difference < 0:
-                    #Q3
-                    self.degree = 180 + self.degree
-                else:
-                    #Q2
-                    self.degree = 180 - self.degree
-            else:
-                
-                if self.y_difference < 0:
-                    #Q4
-                    self.degree = 360 - self.degree
-                else:
-                    #Q1
-                    pass
-        except ZeroDivisionError:
-            if self.y_difference < 0:
-                self.degree = 270
-            else:
-                self.degree = 90
+        self.Q1 = False
+        self.Q2 = False
+        self.Q3 = False
+        self.Q4 = False
+        self.zero = False
+        self.ninty = False
+        self.one_eighty = False
+        self.two_seventy = False
+        self.origin = False
 
-        #*Convert to pygame rotation
-        print(f'before pygame conversion: {self.degree}')
-        self.degree = -(90 - self.degree)
+        try:
+            self.degree = math.atan(self.y_difference / self.x_difference) 
+        except ZeroDivisionError:
+            pass
+
+        if self.x_difference < 0:
+            if self.y_difference < 0:
+                self.Q3 = True
+                self.degree = 180 + (self.degree * 180 / math.pi)
+                #*Into pygame
+                self.degree -= 90
+
+            elif self.y_difference > 0:
+                self.Q2 = True
+                #!Since the self.degree * 180 / math.pi part is negative, this is correct
+                self.degree = 180 + (self.degree * 180 / math.pi)
+                self.degree -= 90
+
+            elif self.y_difference == 0:
+                self.one_eighty = True
+                self.degree = 180
+                #*Into pygame
+                self.degree -= 90
+
+        elif self.x_difference > 0:
+            if self.y_difference < 0:
+                self.Q4 = True
+                self.degree = 360 + (self.degree * 180 / math.pi)
+                self.degree -= 90
+                
+            elif self.y_difference > 0:
+                self.Q1 = True
+                self.degree = 360 + self.degree * 180 / math.pi
+                self.degree -= 90
+
+            elif self.y_difference == 0:
+                self.zero = True
+                self.degree = 0
+                #*Into pygame
+                self.degree -= 90
+
+        elif self.x_difference == 0:
+
+            if self.y_difference < 0:
+                self.two_seventy = True
+                self.degree = 270
+                #*Into pygame
+                self.degree -= 90
+            elif self.y_difference > 0:
+                self.ninty = True
+                self.degree = 90
+                #*Into pygame
+                self.degree -= 90
+
+            elif self.y_difference == 0:
+                self.origin = True
 
         try:
             print(f'final degree: {self.degree}')
-            self.green_diamond = pygame.transform.rotate(self.diamond_list[0], self.degree)
-        #*Handles the case when the image becomes too large
+            self.green_diamond = pygame.transform.rotate(self.green_diamond, self.degree)
+    #*Handles the case when the image becomes too large
         except Exception:
             pass
 

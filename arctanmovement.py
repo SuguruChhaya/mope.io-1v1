@@ -27,24 +27,35 @@ class MainGame():
         self.GREY_IMAGE.set_colorkey((255,255,255))
         self.RED_IMAGE = pygame.transform.scale(pygame.image.load('images/red_diamond.png'), (300, 200))
         self.RED_IMAGE.set_colorkey((255,255,255))
+        self.GREEN_IMAGE_COPY = self.GREEN_IMAGE.copy()
+        self.GREEN_IMAGE_COPY.set_colorkey((255,255,255))
+        self.GREY_IMAGE_COPY = pygame.transform.scale(pygame.image.load('images/grey_diamond.png'), (300, 200))
+        self.GREY_IMAGE_COPY.set_colorkey((255,255,255))
+        self.RED_IMAGE_COPY = pygame.transform.scale(pygame.image.load('images/red_diamond.png'), (300, 200))
+        self.RED_IMAGE_COPY.set_colorkey((255,255,255))
         #*The self.player_list will contain nested lists of three triangles in the orger of green, grey, and red
         self.player_list = []
 
     def redraw(self):
         #!I have to clean up the dust created by rotating the images a lot. 
+        MainGame.window.fill((0, 0, 0))
         self.player.move()
+        if self.player.collision(self.bot):
+            print(self.player.collision(self.bot))
+            print('lol')
         self.player.draw()
 
+        self.bot.draw()
         pygame.display.update()
 
     def game_display(self):
         self.clock.tick(self.FPS)
         self.player = Player(400, 400, [self.GREEN_IMAGE, self.GREY_IMAGE, self.RED_IMAGE])
         self.player_list.append(self.player)
-        '''
-        self.bot = Bot(400, 400, [self.GREEN_IMAGE, self.GREY_IMAGE, self.RED_IMAGE])
+        #!Making copy so that images don't have 2 masks
+        self.bot = Bot(400, 400, [self.GREEN_IMAGE_COPY, self.GREY_IMAGE_COPY, self.RED_IMAGE_COPY])
         self.player_list.append(self.bot)
-        '''
+    
         while self.run:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -85,23 +96,23 @@ class Player():
         '''
         
         MainGame.window.blit(self.green_diamond, (self.x - self.green_diamond.get_width() / 2, self.y - self.green_diamond.get_height() / 2))
-        '''
-        MainGame.window.blit(self.grey_diamond, (self.x, self.y))
-        MainGame.window.blit(self.red_diamond, (self.x, self.y))
-        '''
+        MainGame.window.blit(self.grey_diamond, (self.x - self.grey_diamond.get_width() / 2, self.y - self.grey_diamond.get_height() / 2))
+        MainGame.window.blit(self.red_diamond, (self.x - self.red_diamond.get_width() / 2, self.y - self.red_diamond.get_height() / 2))
+
+    
         pass
 
     def move(self):
         #!I need to first return to the original green image
         self.green_diamond = self.original_green
-
+        self.red_diamond = self.original_red
+        self.grey_diamond = self.original_grey
         self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
         #!Since I am blitting based on the center, self.center_x can just be the x and the y
-        self.center_x = self.x 
-        self.center_y = self.y
-        self.x_difference = self.mouse_x - self.center_x
+
+        self.x_difference = self.mouse_x - self.x
         #!Because of the pygame gridding system, I have to *-1 the y_difference. (Has to be positive when cursor is above the object)
-        self.y_difference = -(self.mouse_y - self.center_y)
+        self.y_difference = -(self.mouse_y - self.y)
         #*Find the degree and times *-1 it. 
         #*I can find it by using the arctan from the math module
         #*Have to convert to degree
@@ -146,7 +157,9 @@ class Player():
                 self.degree -= 90
 
         elif self.x_difference > 0:
+
             if self.y_difference < 0:
+                
                 self.Q4 = True
                 self.degree = 360 + (self.degree * 180 / math.pi)
                 self.degree -= 90
@@ -163,7 +176,6 @@ class Player():
                 self.degree -= 90
 
         elif self.x_difference == 0:
-
             if self.y_difference < 0:
                 self.two_seventy = True
                 self.degree = 270
@@ -178,18 +190,55 @@ class Player():
             elif self.y_difference == 0:
                 self.origin = True
 
+
         try:
-            print(f'final degree: {self.degree}')
             self.green_diamond = pygame.transform.rotate(self.green_diamond, self.degree)
+            self.grey_diamond = pygame.transform.rotate(self.grey_diamond, self.degree)
+            self.red_diamond = pygame.transform.rotate(self.red_diamond, self.degree)
     #*Handles the case when the image becomes too large
         except Exception:
             pass
 
+        #*Actually moving the shapes
+        '''
+        1. I am going to use the Pythagorean Theorem to calculate the actual distance between my mouse and the diamond. 
+        2. Compare lengths with a similar triangle with the hypotenuse of 1. 
+        '''
+        #?Not moving down
+        #?I have a weird shaking bug when computer is on the middle. 
+        self.distance = math.sqrt(self.x_difference ** 2 + self.y_difference ** 2)
+        self.speed = 0.1
+        self.x += self.x_difference * (self.speed / self.distance)
+        #!Remember that the y_difference was put as negative!!
+        self.y += -self.y_difference * (self.speed / self.distance)
+
+
+    def collision(self, obj2):
+        #?Instead of using masks, I could use color detection 
+        offset_x = obj2.x - self.x
+        offset_y = obj2.y - self.y
+        #? The problem might be that there are 2 masks for the same image object
+
+        #?Now it isn't showing overlap at the same time
+        return self.green_mask.overlap(obj2.red_mask, (int(offset_x), int(offset_y))) != None
+    
+
+
 class Bot(Player):
     def __init__(self, x, y, images):
         super().__init__(x, y, images)
+        
 
     def move(self):
+        pass
+
+
+#*Just to re-test the issue, I am going to create a second bot
+#!I am going to use color collision for the second one. 
+#https://www.youtube.com/watch?v=JW_H7o-MmtI
+
+class Bot2():
+    def __init__(self, images):
         pass
         
 

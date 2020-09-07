@@ -1,4 +1,7 @@
 '''
+In this file, I am going to try to use a black circle to try the mask idea. 
+'''
+'''
 This is the main file of this project.
 I will eventually make an online version of this game, but I will make it 1 player for now. 
 Since I can only make 1 now, I will make one player with the mouse and 1 bot to play with. 
@@ -42,15 +45,21 @@ class MainGame():
         self.TREX.set_colorkey((255,255, 255))
         #*The self.player_list will contain nested lists of three triangles in the orger of green, grey, and red
         
-        self.RING_IMAGE = pygame.transform.scale(pygame.image.load('images/thin_circle.png'), (800, 800))
-        self.RING_IMAGE.set_colorkey((0, 0, 0))
+        self.RING_IMAGE = pygame.transform.scale(pygame.image.load('images/black_circle.png'), (800, 800))
+        #self.RING_IMAGE.set_colorkey((0, 0, 0))
+
+        self.FIRE_IMAGE = pygame.transform.scale(pygame.image.load('images/fire.png'), (300, 200))
+        self.FIRE_IMAGE.set_colorkey((0, 0, 0))
+        self.FIRE_IMAGE_COPY = self.FIRE_IMAGE.copy()
+        self.FIRE_IMAGE_COPY.set_colorkey((0, 0, 0))
+
         self.player_list = []
 
     def redraw(self):
         #!I have to clean up the dust created by rotating the images a lot. 
         MainGame.window.fill((255, 0, 0))
         #?The order of this will change once I make a client side.
-        pygame.draw.circle(MainGame.window, (0, 0, 0), (400, 400), 400)
+        #pygame.draw.circle(MainGame.window, (0, 0, 0), (400, 400), 400)
         self.ring.shrink()
         self.ring.draw()
         self.bot.draw()
@@ -58,26 +67,35 @@ class MainGame():
         
         if self.player.collision(self.bot):
             print('bite')
-        if self.ring.collision(self.player):
-            print(self.player.x)
-            print(self.player.y)
-            raise(Exception)
+
+
+        
 
         
         self.player.draw()
 
-        
+        #!Has to be after self.player.draw because fire must show on top of player
+        if self.ring.collision(self.player):
+            #*I need to make a health losing counter
+            self.player.health -= 3
+            self.player.draw_fire()
+
+        if self.player.health < 0:
+            #*Have to import font and all that. 
+            pass
 
         
         pygame.display.update()
 
+
+
     def game_display(self):
         self.clock.tick(MainGame.FPS)
     
-        self.player = Player(400, 400, [self.GREEN_IMAGE, self.GREY_IMAGE, self.RED_IMAGE, self.BIGFOOT])
+        self.player = Player(400, 400, [self.GREEN_IMAGE, self.GREY_IMAGE, self.RED_IMAGE, self.BIGFOOT, self.FIRE_IMAGE])
         self.player_list.append(self.player)
         #!Making copy so that images don't have 2 masks
-        self.bot = Bot(400, 400, [self.GREEN_IMAGE_COPY, self.GREY_IMAGE_COPY, self.RED_IMAGE_COPY, self.TREX])
+        self.bot = Bot(400, 400, [self.GREEN_IMAGE_COPY, self.GREY_IMAGE_COPY, self.RED_IMAGE_COPY, self.TREX, self.FIRE_IMAGE_COPY])
         self.player_list.append(self.bot)
 
         self.ring = Ring(self.RING_IMAGE)
@@ -100,6 +118,7 @@ class Player():
         self.grey_diamond = images[1]
         self.red_diamond = images[2]
         self.animal = images[3]
+        self.fire = images[4]
         #!I need this to bring it back to the original
         self.original_green = images[0]
         self.original_grey = images[1]
@@ -110,12 +129,21 @@ class Player():
         self.red_mask = pygame.mask.from_surface(self.red_diamond)
         #*I need to create a mask for the grey diamond too to check for wall collisions. 
         self.grey_mask = pygame.mask.from_surface(self.grey_diamond)
+
         #!To prevent stand still glitch in the move method
         self.ban_degree = 999999
         self.previous_degree = None
 
+        #*Health bar
+        self.max_health = 100
+        self.health = 100
+
+        #*Fire related variables
+        
+        self.fire_cool = MainGame.FPS * 1
+
         #*3 seconds to cool down
-        self.max_cool_down = MainGame.FPS * 3
+        #self.max_cool_down = MainGame.FPS * 3
         self.cool_down = MainGame.FPS * 3
         #*To check whether player has bitten a tail
     
@@ -143,8 +171,24 @@ class Player():
         #*Play gif if animal touched wall
         #MainGame.window.blit(MainGame.FIRE, (self.x - self.red_diamond.get_width() / 2, self.y - self.red_diamond.get_height() / 2))
 
-    
-        pass
+        #*Health bar
+        #Red bar
+        rect_width = 50
+        rect_height = 5
+        red_location = (self.x - 25, self.y - self.original_grey.get_height() / 2 - rect_height - 10, rect_width, rect_height)
+        pygame.draw.rect(MainGame.window, (255, 0, 0), red_location)
+
+        #Green bar
+        rect_width = rect_width * self.health / self.max_health
+        green_location = (self.x - 25, self.y - self.original_grey.get_height() / 2 - rect_height - 10, rect_width, rect_height)
+        pygame.draw.rect(MainGame.window, (0, 255, 0), green_location)
+
+    def draw_fire(self):
+        if self.fire_cool > 0:
+            MainGame.window.blit(self.fire, (self.x - self.grey_diamond.get_width() / 2, self.y - self.grey_diamond.get_height() / 2))
+            self.fire_cool -= 1
+        else:
+            self.fire_cool = MainGame.FPS * 1
 
     def move(self):
         #!To prevent the moving glitch, I will store the previous degree measure as self.previous_degree. 
@@ -274,6 +318,7 @@ class Player():
             #!I might want to redo the mask here
             self.green_mask = pygame.mask.from_surface(self.green_diamond)
             self.red_mask = pygame.mask.from_surface(self.red_diamond)
+            self.grey_mask = pygame.mask.from_surface(self.grey_diamond)
             self.previous_degree = self.degree
     #*Handles the case when the image becomes too large
         except Exception:
@@ -287,7 +332,7 @@ class Player():
         #?Not moving down
         #?I have a weird shaking bug when computer is on the middle. 
         self.distance = math.sqrt(self.x_difference ** 2 + self.y_difference ** 2)
-        self.speed = 0.8
+        self.speed = 1
         self.x += self.x_difference * (self.speed / self.distance)
         #!Remember that the y_difference was put as negative!!
         self.y += -self.y_difference * (self.speed / self.distance)
@@ -351,13 +396,17 @@ class Ring():
 
     def draw(self):
         #*This way, all I have to adjust is the scaling
-        #MainGame.window.blit(self.image, (MainGame.WIDTH / 2 - self.image.get_width() / 2, MainGame.HEIGHT / 2 - self.image.get_height() / 2))
-        pass
+        MainGame.window.blit(self.image, (MainGame.WIDTH / 2 - self.image.get_width() / 2, MainGame.HEIGHT / 2 - self.image.get_height() / 2))
+        
 
     def collision(self, obj):
 
         #*For collision, I could slap a black image in the middle and create a mask.
         #*I could use the mask.overlap.area method to check if any of the body went outside of the black circle. 
+
+        
+        
+        '''
         #!Rather than using a mask, I am going to check whether the color of the coordinates
         #!Remember where the actual coordinates were!!
 
@@ -386,19 +435,24 @@ class Ring():
 
 
         return (255, 0, 0, 255) in [MainGame.window.get_at(topleft), MainGame.window.get_at(topright), MainGame.window.get_at(bottom_left), MainGame.window.get_at(bottom_right)]
-
+        '''
 
         
 
-        '''
+        
         blit_x = MainGame.WIDTH / 2 - self.image.get_width() / 2
         blit_y = MainGame.HEIGHT / 2 - self.image.get_height() / 2
         #*We know that obj is going to be the player or the bot
         offset_x = (obj.x - obj.grey_diamond.get_width() / 2) - blit_x
         offset_y = (obj.y - obj.grey_diamond.get_height() / 2) - blit_y
         
-        return self.mask.overlap(obj.grey_mask, (int(offset_x), int(offset_y)))
-        '''
+        return self.mask.overlap_area(obj.grey_mask, (int(offset_x), int(offset_y))) < 11800
+        
+
+
+
+
+
 
 game = MainGame()
 game.game_display()
